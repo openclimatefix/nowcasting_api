@@ -13,19 +13,21 @@ response = client.get_secret_value(
     SecretId="development/rds/forecast/",
 )
 secret = json.loads(response["SecretString"])
-""" We have used a ssh tunnel to 'localhost' """
-db_url = f'postgresql://{secret["username"]}:{secret["password"]}@localhost:{secret["port"]}/{secret["dbname"]}'
+""" We have used a ssh tunnel to 'localhost' on port 5433 """
+db_url = f'postgresql://{secret["username"]}:{secret["password"]}@localhost:5433/{secret["dbname"]}'
 
 connection = DatabaseConnection(url=db_url, base=Base_Forecast, echo=True)
 
 
 session = connection.get_session()
 
+gsp_id=1
+
 in_day = get_gsp_yield(
-    session=session, gsp_ids=[0], start_datetime_utc=datetime(2022, 4, 19), regime="in-day"
+    session=session, gsp_ids=[gsp_id], start_datetime_utc=datetime(2022, 4, 19), regime="in-day"
 )
 day_after = get_gsp_yield(
-    session=session, gsp_ids=[0], start_datetime_utc=datetime(2022, 4, 19), regime="day-after"
+    session=session, gsp_ids=[gsp_id], start_datetime_utc=datetime(2022, 4, 19), regime="day-after"
 )
 
 in_day = pd.DataFrame([i.__dict__ for i in in_day])
@@ -44,7 +46,7 @@ gsp = day_after.join(in_day, lsuffix="_day_after", rsuffix="_in_day")
 
 mae = (
     (gsp["solar_generation_kw_in_day"] - gsp["solar_generation_kw_day_after"]).abs().mean()
-    / 10 ** 6
+    / 10 ** 3
 ).round(2)
 me = (
     (gsp["solar_generation_kw_in_day"] - gsp["solar_generation_kw_day_after"]).mean() / 10 ** 6
@@ -54,18 +56,18 @@ rmse = (
         ((gsp["solar_generation_kw_in_day"] - gsp["solar_generation_kw_day_after"]) ** 2).mean()
         ** 0.5
     )
-    / 10 ** 6
+    / 10 ** 3
 ).round(2)
 
 trace_in_day = go.Scatter(
     x=gsp.index,
-    y=gsp["solar_generation_kw_in_day"] / 10 ** 6,
+    y=gsp["solar_generation_kw_in_day"] / 10 ** 3,
     line=dict(width=4, dash="dot"),
     name="in-day",
 )
 trace_day_after = go.Scatter(
     x=gsp.index,
-    y=gsp["solar_generation_kw_day_after"] / 10 ** 6,
+    y=gsp["solar_generation_kw_day_after"] / 10 ** 3,
     line=dict(width=4),
     name="day-after",
 )
@@ -73,9 +75,9 @@ trace_day_after = go.Scatter(
 
 fig = go.Figure(data=[trace_in_day, trace_day_after])
 fig.update_layout(
-    title=f"Compare GSP 'in-day' and 'after-day'. {mae=} {me=} {rmse=} [GW]",
+    title=f"Compare GSP 'in-day' and 'after-day'. {mae=} {me=} {rmse=} [MW]",
     xaxis_title="Time",
-    yaxis_title="Solar generation [GW]",
+    yaxis_title="Solar generation [MW]",
 )
 
 
