@@ -1,18 +1,17 @@
-""" Test for main app """
+# """ Test for main app """
 # from datetime import datetime
 #
 # from fastapi.testclient import TestClient
 # from freezegun import freeze_time
 # from nowcasting_datamodel.models import PVSystem, PVSystemSQL, PVYield
 #
-# from database import get_session
 # from main import app
 #
 # client = TestClient(app)
 #
 #
 # @freeze_time("2022-01-02")
-# def test_read_latest_pv(db_session):
+# def test_read_latest_pv(db_session, api_client):
 #     """Check main pv route works"""
 #
 #     pv_yield_1 = PVYield(datetime_utc=datetime(2022, 1, 2), solar_generation_kw=1)
@@ -48,9 +47,7 @@
 #
 #     db_session.commit()
 #
-#     app.dependency_overrides[get_session] = lambda: db_session
-#
-#     response = client.get("/v0/GB/solar/pv/pv_latest")
+#     response = api_client.get("/v0/GB/solar/pv/pv_latest")
 #     assert response.status_code == 200
 #
 #     r_json = response.json()

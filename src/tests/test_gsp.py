@@ -1,7 +1,6 @@
 """ Test for main app """
 from datetime import datetime, timezone
 
-from fastapi.testclient import TestClient
 from freezegun import freeze_time
 from nowcasting_datamodel.fake import (
     make_fake_forecast,
@@ -21,25 +20,22 @@ from nowcasting_datamodel.update import update_all_forecast_latest
 from database import get_session
 from main import app
 
-client = TestClient(app)
-
 
 @freeze_time("2022-01-01")
-def test_read_latest_one_gsp(db_session):
+def test_read_latest_one_gsp(db_session, api_client):
+
     """Check main GB/pv/gsp/{gsp_id} route works"""
 
     forecasts = make_fake_forecasts(gsp_ids=list(range(0, 10)), session=db_session)
     db_session.add_all(forecasts)
 
-    app.dependency_overrides[get_session] = lambda: db_session
-
-    response = client.get("/v0/GB/solar/gsp/forecast/one_gsp/1")
+    response = api_client.get("/v0/GB/solar/gsp/forecast/one_gsp/1")
     assert response.status_code == 200
 
     _ = Forecast(**response.json())
 
 
-def test_read_latest_all_gsp(db_session):
+def test_read_latest_all_gsp(db_session, api_client):
     """Check main GB/pv/gsp route works"""
 
     forecasts = make_fake_forecasts(
@@ -51,7 +47,7 @@ def test_read_latest_all_gsp(db_session):
 
     app.dependency_overrides[get_session] = lambda: db_session
 
-    response = client.get("/v0/GB/solar/gsp/forecast/all")
+    response = api_client.get("/v0/GB/solar/gsp/forecast/all")
     assert response.status_code == 200
 
     r = ManyForecasts(**response.json())
@@ -59,7 +55,7 @@ def test_read_latest_all_gsp(db_session):
     assert len(r.forecasts[0].forecast_values) == 2
 
 
-def test_read_latest_all_gsp_normalized(db_session):
+def test_read_latest_all_gsp_normalized(db_session, api_client):
     """Check main GB/pv/gsp route works"""
 
     forecasts = make_fake_forecasts(
@@ -71,7 +67,7 @@ def test_read_latest_all_gsp_normalized(db_session):
 
     app.dependency_overrides[get_session] = lambda: db_session
 
-    response = client.get("/v0/GB/solar/gsp/forecast/all/?normalize=True")
+    response = api_client.get("/v0/GB/solar/gsp/forecast/all/?normalize=True")
     assert response.status_code == 200
 
     r = ManyForecasts(**response.json())
@@ -79,7 +75,7 @@ def test_read_latest_all_gsp_normalized(db_session):
     assert r.forecasts[0].forecast_values[0].expected_power_generation_megawatts <= 1
 
 
-def test_read_latest_all_gsp_historic(db_session):
+def test_read_latest_all_gsp_historic(db_session, api_client):
     """Check main GB/pv/gsp route works"""
 
     forecasts = make_fake_forecasts(
@@ -92,7 +88,7 @@ def test_read_latest_all_gsp_historic(db_session):
 
     app.dependency_overrides[get_session] = lambda: db_session
 
-    response = client.get("/v0/GB/solar/gsp/forecast/all/?historic=True")
+    response = api_client.get("/v0/GB/solar/gsp/forecast/all/?historic=True")
     assert response.status_code == 200
 
     r = ManyForecasts(**response.json())
@@ -101,35 +97,31 @@ def test_read_latest_all_gsp_historic(db_session):
     assert r.forecasts[0].forecast_values[0].expected_power_generation_megawatts <= 1
 
 
-def test_read_latest_national(db_session):
+def test_read_latest_national(db_session, api_client):
     """Check main GB/pv/national route works"""
 
     forecast = make_fake_national_forecast(session=db_session)
     db_session.add(forecast)
 
-    app.dependency_overrides[get_session] = lambda: db_session
-
-    response = client.get("/v0/GB/solar/gsp/forecast/national")
+    response = api_client.get("/v0/GB/solar/gsp/forecast/national")
     assert response.status_code == 200
 
     _ = Forecast(**response.json())
 
 
-def test_gsp_boundaries(db_session):
+def test_gsp_boundaries(db_session, api_client):
     """Check main GB/pv/national route works"""
 
     forecast = make_fake_national_forecast(session=db_session)
     db_session.add(forecast)
 
-    app.dependency_overrides[get_session] = lambda: db_session
-
-    response = client.get("/v0/GB/solar/gsp/gsp_boundaries")
+    response = api_client.get("/v0/GB/solar/gsp/gsp_boundaries")
     assert response.status_code == 200
     assert len(response.json()) > 0
 
 
 @freeze_time("2022-01-01")
-def test_read_truth_one_gsp(db_session):
+def test_read_truth_one_gsp(db_session, api_client):
     """Check main GB/pv/gsp/{gsp_id} route works"""
 
     gsp_yield_1 = GSPYield(datetime_utc=datetime(2022, 1, 2), solar_generation_kw=1)
@@ -153,8 +145,8 @@ def test_read_truth_one_gsp(db_session):
     db_session.add_all([gsp_yield_1_sql, gsp_yield_2_sql, gsp_yield_3_sql, gsp_sql_1, gsp_sql_2])
 
     app.dependency_overrides[get_session] = lambda: db_session
+    response = api_client.get("/v0/GB/solar/gsp/pvlive/one_gsp/1")
 
-    response = client.get("/v0/GB/solar/gsp/pvlive/one_gsp/1")
     assert response.status_code == 200
 
     r_json = response.json()
@@ -163,7 +155,7 @@ def test_read_truth_one_gsp(db_session):
 
 
 @freeze_time("2022-06-01")
-def test_read_forecast_one_gsp(db_session):
+def test_read_forecast_one_gsp(db_session, api_client):
     """Check main GB/pv/gsp/{gsp_id} route works"""
 
     forecast_value_1 = ForecastValue(
@@ -193,7 +185,7 @@ def test_read_forecast_one_gsp(db_session):
 
     app.dependency_overrides[get_session] = lambda: db_session
 
-    response = client.get("/v0/GB/solar/gsp/forecast/latest/1")
+    response = api_client.get("/v0/GB/solar/gsp/forecast/latest/1")
     assert response.status_code == 200
 
     r_json = response.json()
@@ -207,7 +199,7 @@ def test_read_forecast_one_gsp(db_session):
     _ = [ForecastValue(**forecast_value) for forecast_value in r_json]
 
 
-def test_get_gsp_systems(db_session):
+def test_get_gsp_systems(db_session, api_client):
     """Check main GB/pv/gsp route works"""
 
     forecasts = make_fake_forecasts(gsp_ids=list(range(0, 10)), session=db_session)
@@ -215,7 +207,7 @@ def test_get_gsp_systems(db_session):
 
     app.dependency_overrides[get_session] = lambda: db_session
 
-    response = client.get("v0/GB/solar/gsp/gsp_systems")
+    response = api_client.get("v0/GB/solar/gsp/gsp_systems")
     assert response.status_code == 200
 
     locations = [Location(**location) for location in response.json()]
